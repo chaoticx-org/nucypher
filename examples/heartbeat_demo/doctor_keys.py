@@ -16,11 +16,12 @@
 """
 
 import json
-import os
+from pathlib import Path
+
 from nucypher.crypto.umbral_adapter import SecretKey, PublicKey
 
-DOCTOR_PUBLIC_JSON = 'doctor.public.json'
-DOCTOR_PRIVATE_JSON = 'doctor.private.json'
+DOCTOR_PUBLIC_JSON = Path('doctor.public.json')
+DOCTOR_PRIVATE_JSON = Path('doctor.private.json')
 
 
 def generate_doctor_keys():
@@ -28,8 +29,8 @@ def generate_doctor_keys():
     sig_privkey = SecretKey.random()
 
     doctor_privkeys = {
-        'enc': bytes(enc_privkey).hex(),
-        'sig': bytes(sig_privkey).hex(),
+        'enc': enc_privkey.to_secret_bytes().hex(),
+        'sig': sig_privkey.to_secret_bytes().hex(),
     }
 
     with open(DOCTOR_PRIVATE_JSON, 'w') as f:
@@ -46,7 +47,7 @@ def generate_doctor_keys():
 
 
 def _get_keys(file, key_class):
-    if not os.path.isfile(file):
+    if not file.exists():
         generate_doctor_keys()
 
     with open(file) as f:

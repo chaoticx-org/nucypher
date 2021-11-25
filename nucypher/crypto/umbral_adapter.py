@@ -18,4 +18,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 # This module is used to have a single point where the Umbral implementation is chosen.
 # Do not import Umbral directly, use re-exports from this module.
 
-from umbral import *
+
+from umbral import (
+    SecretKey,
+    PublicKey,
+    SecretKeyFactory,
+    Signature,
+    Signer,
+    Capsule,
+    KeyFrag,
+    VerifiedKeyFrag,
+    CapsuleFrag,
+    VerifiedCapsuleFrag,
+    VerificationError,
+    encrypt,
+    decrypt_original,
+    generate_kfrags,
+    reencrypt,
+    decrypt_reencrypted,
+)

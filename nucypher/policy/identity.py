@@ -16,22 +16,21 @@
 """
 
 
+import base64
+import hashlib
 import json
 from pathlib import Path
-from typing import Union, Optional, Dict, Callable
+from typing import Callable, Dict, Optional, Union
 
-import base64
 import constant_sorrow
-import hashlib
-import os
-from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier
+from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
 from constant_sorrow.constants import ALICE, BOB, NO_SIGNATURE
 from hexbytes.main import HexBytes
 
 from nucypher.characters.base import Character
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import SigningPower, DecryptingPower
+from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 
 
@@ -100,7 +99,7 @@ class Card:
 
         if isinstance(nickname, str):
             nickname = nickname.encode()
-        self.__nickname = nickname
+        self.__nickname = nickname or None
 
         self.__validate()
 
@@ -141,6 +140,8 @@ class Card:
         payload = self.__payload
         if self.nickname:
             payload += VariableLengthBytestring(self.__nickname)
+        else:
+            payload += VariableLengthBytestring(b'')
         return payload
 
     def __hex__(self) -> str:
@@ -294,11 +295,11 @@ class Card:
         return exists
 
     def save(self, encoder: Callable = base64.b64encode, overwrite: bool = False) -> Path:
-        if not self.CARD_DIR.exists():
-            os.mkdir(str(self.CARD_DIR))
+        if not self.CARD_DIR.is_dir():
+            self.CARD_DIR.mkdir()
         if self.is_saved and not overwrite:
             raise FileExistsError('Card exists. Pass overwrite=True to allow this operation.')
-        with open(str(self.filepath), 'wb') as file:
+        with open(self.filepath, 'wb') as file:
             file.write(encoder(bytes(self)))
         return Path(self.filepath)
 
@@ -309,7 +310,7 @@ class Card:
             nickname, _id = identifier.split(cls.__DELIMITER)
         except ValueError:
             nickname = identifier
-        filenames = [f for f in os.listdir(Card.CARD_DIR) if nickname.lower() in f.lower()]
+        filenames = [f for f in Card.CARD_DIR.iterdir() if nickname.lower() in f.name.lower()]
         if not filenames:
             raise cls.UnknownCard(f'Unknown card nickname or ID "{nickname}".')
         elif len(filenames) == 1:
@@ -323,7 +324,7 @@ class Card:
     def load(cls,
              filepath: Optional[Path] = None,
              identifier: str = None,
-             card_dir: Path = None,
+             card_dir: Optional[Path] = None,
              decoder: Callable = base64.b64decode
              ) -> 'Card':
 
@@ -334,7 +335,7 @@ class Card:
         if not filepath:
             filepath = cls.lookup(identifier=identifier, card_dir=card_dir)
         try:
-            with open(str(filepath), 'rb') as file:
+            with open(filepath, 'rb') as file:
                 card_bytes = decoder(file.read())
         except FileNotFoundError:
             raise cls.UnknownCard
@@ -342,4 +343,4 @@ class Card:
         return instance
 
     def delete(self) -> None:
-        os.remove(str(self.filepath))
+        self.filepath.unlink()

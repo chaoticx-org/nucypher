@@ -14,47 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from maya import MayaDT
 
-from nucypher.crypto.signing import Signature
-from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.datastore.base import DatastoreRecord, RecordField
 
 
-class PolicyArrangement(DatastoreRecord):
-    _arrangement_id = RecordField(bytes)
-    _expiration = RecordField(
-            MayaDT,
-            encode=lambda maya_date: maya_date.iso8601().encode(),
-            decode=lambda maya_bytes: MayaDT.from_iso8601(maya_bytes.decode()))
-    _kfrag = RecordField(
-            VerifiedKeyFrag,
-            encode=bytes,
-            decode=VerifiedKeyFrag.from_verified_bytes)
-    _alice_verifying_key = RecordField(
-            PublicKey,
-            encode=bytes,
-            decode=PublicKey.from_bytes)
-
-
-class Workorder(DatastoreRecord):
-    _arrangement_id = RecordField(bytes)
+class ReencryptionRequest(DatastoreRecord):
     _bob_verifying_key = RecordField(
             PublicKey,
             encode=bytes,
             decode=PublicKey.from_bytes)
-    _bob_signature = RecordField(
-            Signature,
-            encode=bytes,
-            decode=Signature.from_bytes)
-
-
-class TreasureMap(DatastoreRecord):
-    # Ideally this is a `policy.collections.TreasureMap`, but it causes a huge
-    # circular import due to `Bob` and `Character` in `policy.collections`.
-    # TODO #2126
-    _treasure_map = RecordField(bytes)
-    _expiration = RecordField(
-            MayaDT,
-            encode=lambda maya_date: maya_date.iso8601().encode(),
-            decode=lambda maya_bytes: MayaDT.from_iso8601(maya_bytes.decode()))

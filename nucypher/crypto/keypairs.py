@@ -14,8 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import base64
-from typing import Union
+from pathlib import Path
+from typing import Optional, Union
 
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
@@ -25,12 +25,17 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 
+from nucypher.core import MessageKit, EncryptedTreasureMap, EncryptedKeyFrag
+
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
-from nucypher.crypto.umbral_adapter import SecretKey, PublicKey, Signature, Signer, decrypt_original, decrypt_reencrypted
+from nucypher.crypto.tls import _read_tls_certificate, _TLS_CURVE, generate_self_signed_certificate
+from nucypher.crypto.umbral_adapter import (
+    SecretKey,
+    PublicKey,
+    Signature,
+    Signer,
+)
 from nucypher.network.resources import get_static_resources
 
 
@@ -79,27 +84,22 @@ class DecryptingKeypair(Keypair):
     A keypair for Umbral
     """
 
+    class DecryptionFailed(Exception):
+        """Raised when decryption fails."""
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def decrypt(self, message_kit: MessageKit) -> bytes:
+    def decrypt(self, message_kit: Union[MessageKit, EncryptedKeyFrag, EncryptedTreasureMap]) -> bytes:
         """
         Decrypt data encrypted with Umbral.
 
         :return: bytes
         """
-        if len(message_kit) > 0:
-            cleartext = decrypt_reencrypted(self._privkey,
-                                            message_kit._delegating_key,
-                                            message_kit.capsule,
-                                            list(message_kit._cfrags),
-                                            message_kit.ciphertext)
-        else:
-            cleartext = decrypt_original(self._privkey,
-                                         message_kit.capsule,
-                                         message_kit.ciphertext)
-
-        return cleartext
+        try:
+            return message_kit.decrypt(self._privkey)
+        except ValueError as e:
+            raise self.DecryptionFailed() from e
 
 
 class SigningKeypair(Keypair):
@@ -140,23 +140,20 @@ class HostingKeypair(Keypair):
                  checksum_address: str = None,
                  private_key: Union[SecretKey, PublicKey] = None,
                  certificate=None,
-                 certificate_filepath: str = None,
+                 certificate_filepath: Optional[Path] = None,
                  generate_certificate=False,
                  ) -> None:
 
         if private_key:
-            if not certificate_filepath:
-                raise ValueError('public certificate required to load a hosting keypair.')
-            from nucypher.config.keyring import _read_tls_public_certificate
-            certificate = _read_tls_public_certificate(filepath=certificate_filepath)
+            if certificate_filepath:
+                certificate = _read_tls_certificate(filepath=certificate_filepath)
             super().__init__(private_key=private_key)
 
         elif certificate:
             super().__init__(public_key=certificate.public_key())
 
         elif certificate_filepath:
-            from nucypher.config.keyring import _read_tls_public_certificate
-            certificate = _read_tls_public_certificate(filepath=certificate_filepath)
+            certificate = _read_tls_certificate(filepath=certificate_filepath)
             super().__init__(public_key=certificate.public_key())
 
         elif generate_certificate:
@@ -164,11 +161,9 @@ class HostingKeypair(Keypair):
                 message = "If you don't supply a TLS certificate, one will be generated for you." \
                           "But for that, you need to pass a host and checksum address."
                 raise TypeError(message)
-
-            certificate, private_key = generate_teacher_certificate(host=host,
-                                                                    checksum_address=checksum_address,
-                                                                    private_key=private_key)
+            certificate, private_key = generate_self_signed_certificate(host=host, private_key=private_key)
             super().__init__(private_key=private_key)
+
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")
 

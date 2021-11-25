@@ -17,14 +17,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import inspect
+from typing import List, Optional, Tuple
+
 from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
-from typing import List, Optional, Tuple
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
-from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
+from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair, HostingKeypair
 from nucypher.crypto.umbral_adapter import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
 
 
@@ -245,14 +246,13 @@ class DerivedKeyBasedPower(CryptoPowerUp):
 
 class DelegatingPower(DerivedKeyBasedPower):
 
-    def __init__(self, keying_material: Optional[bytes] = None):
-        if keying_material is None:
-            self.__umbral_keying_material = SecretKeyFactory.random()
-        else:
-            self.__umbral_keying_material = SecretKeyFactory.from_bytes(keying_material)
+    def __init__(self, secret_key_factory: Optional[SecretKeyFactory] = None):
+        if not secret_key_factory:
+            secret_key_factory = SecretKeyFactory.random()
+        self.__secret_key_factory = secret_key_factory
 
     def _get_privkey_from_label(self, label):
-        return self.__umbral_keying_material.secret_key_by_label(label)
+        return self.__secret_key_factory.make_key(label)
 
     def get_pubkey_from_label(self, label):
         return self._get_privkey_from_label(label).public_key()
@@ -261,8 +261,8 @@ class DelegatingPower(DerivedKeyBasedPower):
                         bob_pubkey_enc,
                         signer,
                         label: bytes,
-                        m: int,
-                        n: int
+                        threshold: int,
+                        shares: int
                         ) -> Tuple[PublicKey, List]:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
@@ -270,15 +270,15 @@ class DelegatingPower(DerivedKeyBasedPower):
         These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
         that he can activate the Capsule.
         :param bob_pubkey_enc: Bob's public key
-        :param m: Minimum number of KFrags needed to rebuild ciphertext
-        :param n: Total number of KFrags to generate
+        :param threshold: Minimum number of KFrags needed to rebuild ciphertext
+        :param shares: Total number of KFrags to generate
         """
 
         __private_key = self._get_privkey_from_label(label)
         kfrags = generate_kfrags(delegating_sk=__private_key,
                                  receiving_pk=bob_pubkey_enc,
-                                 threshold=m,
-                                 num_kfrags=n,
+                                 threshold=threshold,
+                                 shares=shares,
                                  signer=signer,
                                  sign_delegating_key=False,
                                  sign_receiving_key=False,
@@ -290,3 +290,29 @@ class DelegatingPower(DerivedKeyBasedPower):
         label_keypair = keypairs.DecryptingKeypair(private_key=label_privkey)
         decrypting_power = DecryptingPower(keypair=label_keypair)
         return decrypting_power
+
+
+class TLSHostingPower(KeyPairBasedPower):
+    _keypair_class = HostingKeypair
+    provides = ("get_deployer",)
+
+    class NoHostingPower(PowerUpError):
+        pass
+
+    not_found_error = NoHostingPower
+
+    def __init__(self,
+                 host: str,
+                 public_certificate=None,
+                 public_certificate_filepath=None,
+                 *args, **kwargs) -> None:
+
+        if public_certificate and public_certificate_filepath:
+            # TODO: Design decision here: if they do pass both, and they're identical, do we let that slide?  NRN
+            raise ValueError("Pass either a public_certificate or a public_certificate_filepath, not both.")
+
+        if public_certificate:
+            kwargs['keypair'] = HostingKeypair(certificate=public_certificate, host=host)
+        elif public_certificate_filepath:
+            kwargs['keypair'] = HostingKeypair(certificate_filepath=public_certificate_filepath, host=host)
+        super().__init__(*args, **kwargs)

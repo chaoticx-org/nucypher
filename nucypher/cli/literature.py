@@ -426,11 +426,11 @@ Do not forget this password, and ideally store it using a password manager.
 
 COLLECT_ETH_PASSWORD = "Enter ethereum account password ({checksum_address})"
 
-COLLECT_NUCYPHER_PASSWORD = 'Enter nucypher keyring password'
+COLLECT_NUCYPHER_PASSWORD = 'Enter nucypher keystore password'
 
 GENERIC_PASSWORD_PROMPT = "Enter password"
 
-DECRYPTING_CHARACTER_KEYRING = 'Authenticating {name}'
+DECRYPTING_CHARACTER_KEYSTORE = 'Authenticating {name}'
 
 
 #
@@ -714,3 +714,18 @@ CONFIRMING_ACTIVITY_NOW = "Making a commitment to period {committed_period}"
 SUCCESSFUL_CONFIRM_ACTIVITY = '\nCommitment was made to period #{committed_period} (starting at {date})'
 
 SUCCESSFUL_MANUALLY_SAVE_METADATA = "Successfully saved node metadata to {metadata_path}."
+
+
+#
+# Porter
+#
+
+PORTER_RUN_MESSAGE = "Running Porter Web Controller at {http_scheme}://127.0.0.1:{http_port}"
+
+PORTER_BASIC_AUTH_ENABLED = "Basic Authentication enabled"
+
+PORTER_CORS_ALLOWED_ORIGINS = "CORS Allow Origins: {allow_origins}"
+
+PORTER_BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED = "Both --tls-key-filepath and --tls-certificate-filepath must be provided to launch porter with TLS; only one specified"
+
+PORTER_BASIC_AUTH_REQUIRES_HTTPS = "Basic authentication can only be used with HTTPS. --tls-key-filepath and --tls-certificate-filepath must also be provided"

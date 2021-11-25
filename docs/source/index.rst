@@ -98,6 +98,7 @@ Whitepapers
    :caption: Application Development
 
    application_development/getting_started
+   application_development/porter
    application_development/http_character_control
    application_development/cli_examples
    application_development/local_fleet_demo
@@ -133,7 +134,7 @@ Whitepapers
    architecture/rewards_and_service_fees
    architecture/sub_stakes
    architecture/slashing
-   architecture/period_duration
+   architecture/periods
    architecture/staking_contracts
 .. TODO perhaps categorize architecture section
 
